@@ -1,0 +1,258 @@
+<!DOCTYPE html>
+<html lang="ru">
+	<head>
+		<meta charset="UTF-8" />
+		<meta http-equiv="X-UA-Compatible" content="IE=edge">
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Чат</title>
+		{% load static %}
+        <link href="{% static 'css/styles.css' %}" rel="stylesheet" />
+	</head>
+	<body>
+		<header class="header">
+			<div class="container">
+				<div class="header__inner">
+					<div class="logo">
+						<h1>Messenger</h1>
+					</div>
+					<nav class="menu">
+						<ul class="menu__list">
+							<li class="menu__list-item">
+								<a class="menu__list-link" href="/">Мои чаты</a>
+							</li>
+							<li class="menu__list-item">
+								<a class="menu__list-link" href="/accounts/profiles">Список пользователей</a>
+							</li>
+							<li class="menu__list-item">
+								<a class="menu__list-link" href="/accounts/my_profile">Мой профиль</a>
+							</li>
+						</ul>
+					</nav>
+				</div>
+			</div>
+		</header>
+
+        <div class="container">
+            <div class="content">
+                <h3 class="chatName"></h3>
+                <div class="chatEditBtn"></div>
+                <hr>
+                <div class="chat">
+                    <div class="messages"></div>
+                </div>
+                <div class="message-input">
+                    <input id="chat-message-input" type="text" size="100">
+                    <button id="chat-message-submit">Send</button>
+                </div>
+            </div>
+        </div>
+
+        <script>
+                const currentURL = window.location.href.split('/');
+                const chatName = document.querySelector('.chatName');
+                const chatEditBtn = document.querySelector('.chatEditBtn');
+                const chatMsg = document.querySelector('.messages');
+                const msgText = document.getElementById('chat-message-input');
+                const msgSendBtn = document.getElementById('chat-message-submit');
+                const roomName = currentURL[currentURL.length - 2];
+                const chatSocket = new WebSocket(
+                    'ws://'
+                    + window.location.host
+                    + '/ws/chat/'
+                    + roomName
+                    + '/'
+                );
+
+                let currentUser = '';
+
+                document.addEventListener('DOMContentLoaded', function() {
+                    getUsername();
+                    updateDisplay();
+                    updateMessages();
+                });
+
+                chatEditBtn.addEventListener('click', function() {
+                    location.href= `/chat/${currentURL[currentURL.length - 2]}/edit`;
+                });
+
+                // Выводим на страницу информацию о чате и проверяем является ли текущий пользователь
+                // администратором чата, если да - добавляем кнопку редактирования чата.
+                function updateDisplay() {
+                    fetch(`/api/chat/${currentURL[currentURL.length - 2]}`)
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then((data) => {
+                            isAdmin = data["is_admin"];
+                            chatName.textContent = data["name"];
+
+                            if (currentUser === isAdmin && data["is_group"] === true) {
+                                let btn = document.createElement('button');
+                                btn.class = "editChat";
+                                btn.textContent = "Edit chat";
+                                chatEditBtn.append(btn);
+                            }
+                        })
+                        .catch((error) => {
+                            console.log(`Error: ${error}`);
+                        });
+                };
+
+                // Выводим все предыдущие сообщения из чата на страницу.
+                function updateMessages() {
+                    const baseURL = '/api/messages/get_chat_messages';
+                    const searchParams = new URLSearchParams({
+                        'chat_id': `${currentURL[currentURL.length - 2]}`,
+                    });
+                    const encodedURL = `${baseURL}?${searchParams.toString()}`;
+
+                    fetch(encodedURL)
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then((data) => {
+                            if (!data.length) {
+                                let msg = document.createElement('div');
+                                let msgContent = document.createElement('p');
+                                msgContent.textContent = "В этом чате пока что нет сообщений...";
+                                msg.append(msgContent);
+                                chatMsg.append(msg);
+                            } else {
+                                data.forEach(function(message) {
+                                    let msg = document.createElement('div');
+                                    msg.className = 'message';
+                                    let msgAuthor = document.createElement('h4');
+                                    msgAuthor.textContent = `${message['author']}`;
+                                    msg.append(msgAuthor);
+                                    let msgContent = document.createElement('p');
+                                    msgContent.textContent = message['text'];
+                                    msg.append(msgContent);
+                                    msgHr = document.createElement('hr');
+                                    msg.append(msgHr);
+                                    chatMsg.append(msg);
+                                chatMsg.scrollIntoView({block: "end"});
+                                });
+                            }
+                        })
+                        .catch((error) => {
+                            console.log(`Error: ${error}`);
+                        });
+                };
+
+                // Получаем username текущего пользователя.
+                function getUsername() {
+                    fetch("/accounts/api/profile/my_profile/")
+                        .then((response) => {
+                            if (!response.ok) {
+                                throw new Error(`HTTP error: ${response.status}`);
+                            }
+                            return response.json();
+                        })
+                        .then((data) => {
+                            currentUser = data["username"];
+                        })
+                        .catch((error) => {
+                            console.log(`Error: ${error}`);
+                        });
+                };
+
+                function getCookie(name) {
+                    let cookieValue = null;
+                    if (document.cookie && document.cookie !== '') {
+                        const cookies = document.cookie.split(';');
+                        for (let i = 0; i < cookies.length; i++) {
+                            const cookie = cookies[i].trim();
+                            // Does this cookie string begin with the name we want?
+                            if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                                cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                                break;
+                            }
+                        }
+                    }
+                    return cookieValue;
+                }
+
+                const csrftoken = getCookie('csrftoken');
+
+                // Отправляем сообщение на сервер для его сохранения.
+                msgSendBtn.addEventListener('click', function() {
+                    const formData = new FormData();
+                    formData.append("chat", currentURL[currentURL.length - 2]);
+                    formData.append("text", msgText.value);
+
+                    fetch("/api/messages/", {
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRFToken': csrftoken
+                                },
+                                body: formData,
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error: ${response.status}`);
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        msgText.value = '';
+                    })
+                    .catch(error => {
+                        alert('Error send message: ' + error.message);
+                    });
+                });
+
+                chatSocket.onopen = function(event) {
+                    console.log('WebSocket connection established');
+                };
+
+                chatSocket.onmessage = function(e) {
+                    try {
+                        const data = JSON.parse(e.data);
+
+                        let msg = document.createElement('div');
+                        msg.className = 'message';
+                        let msgAuthor = document.createElement('h4');
+                        msgAuthor.textContent = data.user.username;
+                        msg.append(msgAuthor);
+                        let msgContent = document.createElement('p');
+                        msgContent.textContent = data.message;
+                        msg.append(msgContent);
+                        msgHr = document.createElement('hr');
+                        msg.append(msgHr);
+                        chatMsg.append(msg);
+                        chatMsg.scrollIntoView({block: "end"});
+                    } catch (e) {
+                        console.error('Error parsing WebSocket message:', e);
+                    }
+                };
+
+                chatSocket.onerror = function(event) {
+                    console.error('WebSocket error:', event);
+                };
+
+                chatSocket.onclose = function(e) {
+                    console.error('Chat socket closed unexpectedly');
+                };
+
+                msgText.focus();
+                msgText.onkeyup = function(e) {
+                    if (e.key === 'Enter') {  // enter, return
+                        msgSendBtn.click();
+                    }
+                };
+
+                msgSendBtn.onclick = function(e) {
+                    const message = msgText.value;
+                    chatSocket.send(JSON.stringify({
+                        'message': message
+                    }));
+                    msgText = '';
+                };
+        </script>
+    </body>

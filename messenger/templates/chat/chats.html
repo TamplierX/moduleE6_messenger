@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+{% block title %} Мои чаты {% endblock %}
+
+{% block body %}
+
+    <div class="container">
+        <div class="content">
+            <button class="btn create">Create group chat</button>
+            <h1>Мои чаты</h1>
+        </div>
+    </div>
+
+    <script>
+        const content = document.querySelector('.content');
+        const btnCreate = document.querySelector('.create');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDisplay();
+        });
+
+        btnCreate.addEventListener('click', function() {
+            location.href="/chat/create"
+        });
+
+        function updateDisplay() {
+            fetch("/api/chat/my_chats")
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    data.forEach(function(chat) {
+                        let div = document.createElement('div');
+                        div.innerHTML = `<h3><a href="/chat/${chat["id"]}/">
+                                        ${chat["name"]}</a></h3>`;
+                        content.append(div);
+                    });
+                })
+                .catch((error) => {
+                    console.log(`Error: ${error}`);
+                });
+        }
+    </script>
+{% endblock %}

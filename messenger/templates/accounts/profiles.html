@@ -1,0 +1,41 @@
+{% extends 'base.html' %}
+{% block title %} Все пользователи {% endblock %}
+
+{% block body %}
+
+    <div class="container">
+        <div class="content">
+            <h1>Все пользователи</h1>
+        </div>
+    </div>
+
+    <script>
+        const content = document.querySelector('.content');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDisplay();
+        });
+
+        function updateDisplay() {
+            fetch("/accounts/api/profile/profiles/")
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    data.forEach(function(user) {
+                        let div = document.createElement('div');
+                        div.className = `${user["username"]}`;
+                        div.innerHTML = `<h3><a href="/accounts/profile/${user["user_id"]}/">
+                                        ${user["username"]}</a></h3>`;
+                        content.append(div);
+                    });
+                })
+                .catch((error) => {
+                    console.log(`Error: ${error}`);
+                });
+        }
+    </script>
+{% endblock %}

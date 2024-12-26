@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% block title %} Профиль {% endblock %}
+
+{% block body %}
+
+    <div class="container">
+        <div class="content">
+            <h1>Профиль пользователя</h1>
+            <img class="avatar" src="" alt="Avatar" height="300" width="300">
+            <h3 class="username"></h3>
+            <h3>Full name: <span class="firstName"></span> <span class="lastName"></span></h3>
+            <h3>Bio: <span class="bio"></span></h3>
+            <button class="btn goToChat">Написать сообщение</button>
+        </div>
+    </div>
+
+    <script>
+        const currentURL = window.location.href.split('/');
+        const currentUserID = currentURL[currentURL.length - 2];
+        const avatar = document.querySelector('.avatar');
+        const username = document.querySelector('.username');
+        const firstName = document.querySelector('.firstName');
+        const lastName = document.querySelector('.lastName');
+        const bio = document.querySelector('.bio');
+        const btnGoToChat = document.querySelector('.goToChat');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDisplay();
+        });
+
+        btnGoToChat.addEventListener('click', function() {
+            checkExistingChat();
+        });
+
+        // Выводим информацию о пользователе на страницу.
+        function updateDisplay() {
+            fetch(`/accounts/api/profile/${currentUserID}`)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    avatar.src = data["avatar"];
+                    username.textContent = "Username: " + data["username"];
+                    if (data["first_name"]) {
+                        firstName.textContent = data["first_name"];
+                    }
+                    if (data["last_name"]) {
+                        lastName.textContent = data["last_name"];
+                    }
+                    if (data["bio"]) {
+                        bio.textContent = data["bio"];
+                    }
+                })
+                .catch((error) => {
+                    console.log(`Error: ${error}`);
+                });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        function successfulCreate() {
+            location.href="/"
+        }
+
+        function createChat() {
+            const data = new FormData();
+            data.append("name", "New private chat");
+            data.append("members", `${currentUserID}`);
+            data.append("is_group", false);
+
+            fetch("/api/chat/", {
+                        method: 'POST',
+                        headers: {
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: data,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Chat created successfully');
+                successfulCreate();
+            })
+            .catch(error => {
+                alert('Error creating chat: ' + error.message);
+            });
+        };
+
+        // Проверяем: Есть создан ли уже приватный чат между этими пользователями.
+        // Если да - переходим на страницу чата, если нет - создаем новый.
+        function checkExistingChat() {
+            const baseURL = '/api/chat/check_existing_chat';
+            const searchParams = new URLSearchParams({
+                'another_user_id': `${currentUserID}`,
+            });
+            const encodedURL = `${baseURL}?${searchParams.toString()}`;
+
+            fetch(encodedURL)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    if (!data.length) {
+                        createChat();
+                    } else {
+                        data.forEach(function(chat) {
+                            location.href=`/chat/${chat["id"]}`;
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.log(`Error: ${error}`);
+                });
+        }
+    </script>
+{% endblock %}

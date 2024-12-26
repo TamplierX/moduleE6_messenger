@@ -1,0 +1,123 @@
+{% extends 'base.html' %}
+
+{% block title %} Редактирование профиля {% endblock %}
+
+{% block body %}
+
+    <div class="container">
+        <div class="content">
+            <h1>Редактирование профиля</h1>
+            <img class="avatar" src="" alt="Avatar" height="300" width="300">
+
+            <form id="editForm" enctype="multipart/form-data">
+                <label for="updateAvatar">Change avatar: </label>
+                <input type="file" id="updateAvatar" accept="image/*" onchange="displayImage(this)" name="avatar" ><br>
+
+                <label for="firstName">First name: </label>
+                <input id="firstName" name="first_name" value="" type="text"><br>
+
+                <label for="lastName">Last name: </label>
+                <input id="lastName" name="last_name" value="" type="text"><br>
+
+                <label for="bio">Bio: </label>
+                <input id="bio" name="bio" value="" type="text"><br>
+
+                <button type="submit">Save</button>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const editForm = document.getElementById('editForm');
+        const avatar = document.querySelector('.avatar');
+        const updateAvatar = document.getElementById('updateAvatar');
+        const firstName = document.getElementById('firstName');
+        const lastName = document.getElementById('lastName');
+        const bio = document.getElementById('bio');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateForm();
+        });
+
+        function updateForm() {
+            fetch("/accounts/api/profile/my_profile/")
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    avatar.src = data["avatar"];
+                    firstName.value = data["first_name"];
+                    lastName.value = data["last_name"];
+                    bio.value = data["bio"];
+                })
+                .catch((error) => {
+                    content.textContent = `Could not fetch: ${error}`;
+                });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function displayImage(inputElement) {
+            const file = inputElement.files[0];
+            const imageURL = URL.createObjectURL(file);
+            avatar.src = imageURL;
+            avatar.onload = () => URL.revokeObjectURL(imageURL);
+        }
+
+        function successfulUpdate() {
+            location.href="/accounts/my_profile/"
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+
+            const formData = new FormData();
+            formData.append("first_name", firstName.value);
+            formData.append("last_name", lastName.value);
+            formData.append("bio", bio.value);
+            if (updateAvatar.files.length > 0) {
+                formData.append("avatar", updateAvatar.files[0]);
+            };
+
+            fetch("/accounts/api/profile/edit_my_profile/", {
+                        method: 'PATCH',
+                        headers: {
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: formData,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Profile updated successfully');
+                successfulUpdate();
+            })
+            .catch(error => {
+                alert('Error updating profile: ' + error.message);
+            });
+        });
+    </script>
+{% endblock %}

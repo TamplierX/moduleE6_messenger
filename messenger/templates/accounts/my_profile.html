@@ -1,0 +1,65 @@
+{% extends 'base.html' %}
+{% block title %} Мой профиль {% endblock %}
+
+{% block body %}
+
+    <div class="container">
+        <div class="content">
+            <h1>Мой профиль</h1>
+            <img class="avatar" src="" alt="Avatar" height="300" width="300">
+            <h3 class="username"></h3>
+            <h3>Full name: <span class="firstName"></span> <span class="lastName"></span></h3>
+            <h3>Bio: <span class="bio"></span></h3>
+            <button class="btn edit">Edit profile</button>
+            <button class="btn exit">Exit</button>
+        </div>
+    </div>
+
+    <script>
+        const avatar = document.querySelector('.avatar');
+        const username = document.querySelector('.username');
+        const firstName = document.querySelector('.firstName');
+        const lastName = document.querySelector('.lastName');
+        const bio = document.querySelector('.bio');
+        const btnExit = document.querySelector('.exit');
+        const btnEdit = document.querySelector('.edit');
+
+        document.addEventListener('DOMContentLoaded', function() {
+            updateDisplay();
+        });
+
+        btnExit.addEventListener('click', function() {
+            location.href="/accounts/logout/"
+        });
+
+        btnEdit.addEventListener('click', function() {
+            location.href="/accounts/edit_profile/"
+        });
+
+        function updateDisplay() {
+            fetch("/accounts/api/profile/my_profile/")
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    avatar.src = data["avatar"];
+                    username.textContent = "Username: " + data["username"];
+                    if (data["first_name"]) {
+                        firstName.textContent = data["first_name"];
+                    }
+                    if (data["last_name"]) {
+                        lastName.textContent = data["last_name"];
+                    }
+                    if (data["bio"]) {
+                        bio.textContent = data["bio"];
+                    }
+                })
+                .catch((error) => {
+                    content.textContent = `Could not fetch: ${error}`;
+                });
+        }
+    </script>
+{% endblock %}

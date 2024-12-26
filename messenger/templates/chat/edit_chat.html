@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %} Редактирование чата {% endblock %}
+
+{% block body %}
+
+    <div class="container">
+        <div class="content">
+            <h1>Редактирование чата</h1>
+
+            <form id="editForm">
+                <label for="chatName">Chat name: </label>
+                <input id="chatName" name="name" value="" type="text"><br>
+
+                 <label for="members">Members:</label>
+                <select id="members" name="members" multiple>
+                </select><br>
+
+                <button type="submit">Edit chat</button>
+            </form>
+            <hr>
+            <h1>Удаление чата</h1>
+            <button id="btnDelChat">Delete chat</button>
+        </div>
+    </div>
+
+    <script>
+        const currentURL = window.location.href.split('/');
+        const editForm = document.getElementById('editForm');
+        const chatName = document.getElementById('chatName');
+        const members = document.getElementById('members');
+        const btnDelChat = document.getElementById('btnDelChat');
+
+        btnDelChat.addEventListener('click', function() {
+            const confirmation = confirm("Вы уверены что хотите удалить этот чат?");
+            if(confirmation){
+                fetch(`/api/chat/${currentURL[currentURL.length - 2]}/`, {
+                        method: 'DELETE',
+                        headers: {
+                            'X-CSRFToken': csrftoken
+                        },
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.text();
+                })
+                .then(response => {
+                    alert('Chat delete successfully');
+                    successfulDelete();
+                })
+                .catch(error => {
+                    alert('Error delete chat: ' + error.message);
+                });
+            }
+        });
+
+        document.addEventListener('DOMContentLoaded', function() {
+            addOptions(updateForm);
+        });
+
+        function addOptions(func) {
+            fetch("/accounts/api/profile/profiles")
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    data.forEach(function(user) {
+                        let opt = document.createElement('option');
+                        opt.id = `user${user["user_id"]}`;
+                        opt.value = `${user["user_id"]}`;
+                        opt.textContent = `${user["username"]}`;
+                        members.append(opt);
+                        func();
+                    });
+                })
+                .catch((error) => {
+                    console.log(`Error: ${error}`);
+                });
+        }
+
+        function updateForm() {
+            fetch(`/api/chat/${currentURL[currentURL.length - 2]}/`)
+                .then((response) => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then((data) => {
+                    chatName.value = data["name"];
+                    if (Array.isArray(data["members"])) {
+                        data["members"].forEach((user) => {
+                            let selectUser = document.getElementById(`user${user}`);
+                            if (selectUser !== null){
+                                selectUser.setAttribute("selected", "selected");
+                            }
+                        })
+                    }
+                })
+                .catch((error) => {
+                    console.log(`${error}`);
+                });
+        }
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    // Does this cookie string begin with the name we want?
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        const csrftoken = getCookie('csrftoken');
+
+        function successfulUpdate() {
+            location.href=`/chat/${currentURL[currentURL.length - 2]}/`
+        }
+
+        function successfulDelete() {
+            location.href="/";
+        }
+
+        editForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            const data = new FormData(editForm);
+
+            fetch(`/api/chat/${currentURL[currentURL.length - 2]}/`, {
+                        method: 'PATCH',
+                        headers: {
+                            'X-CSRFToken': csrftoken
+                        },
+                        body: data,
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                alert('Chat updated successfully');
+                successfulUpdate();
+            })
+            .catch(error => {
+                alert('Error updating chat: ' + error.message);
+            });
+        });
+    </script>
+{% endblock %}
